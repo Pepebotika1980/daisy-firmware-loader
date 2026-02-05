@@ -19,9 +19,11 @@ Una aplicación moderna, elegante y nativa para macOS diseñada para cargar firm
 ## 🚀 Instalación Rápida
 
 ### Descargar la App
-1. Ve a la sección de **Releases** (o compílalo tú mismo).
-2. Descarga el archivo `.dmg`.
-3. Arrastra a Aplicaciones.
+[![Descargar v1.2.0](https://img.shields.io/badge/Descargar-v1.2.0--macOS-blue?style=for-the-badge&logo=apple)](https://github.com/Pepebotika1980/daisy-firmware-loader/releases/latest)
+
+1. Ve a la sección de [Releases](https://github.com/Pepebotika1980/daisy-firmware-loader/releases/latest).
+2. Descarga el archivo `.dmg` correspondiente a tu procesador (Intel o Apple Silicon).
+3. Arrastra la app a tu carpeta de Aplicaciones.
 
 ### Requisitos Técnicos
 Aunque los binarios están integrados, se recomienda tener `dfu-util` instalado en el sistema para máxima compatibilidad:
