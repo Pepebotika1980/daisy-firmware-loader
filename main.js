@@ -8,9 +8,11 @@ let lastConnectionState = false;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 700,
-    height: 600,
-    resizable: false,
+    width: 800,
+    height: 650,
+    minWidth: 600,
+    minHeight: 500,
+    resizable: true,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -21,6 +23,9 @@ function createWindow() {
   });
 
   mainWindow.loadFile('index.html');
+
+  // Abrir DevTools para debugging (solo en desarrollo)
+  // mainWindow.webContents.openDevTools();
 }
 
 app.whenReady().then(() => {
@@ -148,95 +153,108 @@ ipcMain.handle('select-firmware', async () => {
 
 // Cargar firmware
 ipcMain.handle('flash-firmware', async (event, firmwarePath) => {
-  return new Promise((resolve) => {
-    const fs = require('fs');
+  try {
+    return new Promise((resolve) => {
+      const fs = require('fs');
 
-    // Función para encontrar el binario de dfu-util
-    const findBinary = (binaryName) => {
-      const possiblePaths = [
-        // Desarrollo
-        path.join(__dirname, 'bin', binaryName),
-        // Producción - extraResources (ubicación principal)
-        path.join(process.resourcesPath, 'bin', binaryName),
-        // Producción - app.asar.unpacked (fallback)
-        path.join(process.resourcesPath, 'app.asar.unpacked', 'bin', binaryName)
-      ];
+      mainWindow.webContents.send('flash-progress', `🔍 Buscando dfu-util...\n`);
+      mainWindow.webContents.send('flash-progress', `📁 __dirname: ${__dirname}\n`);
+      mainWindow.webContents.send('flash-progress', `📁 process.resourcesPath: ${process.resourcesPath}\n`);
 
-      for (const testPath of possiblePaths) {
-        if (fs.existsSync(testPath)) {
-          console.log(`✅ Encontrado ${binaryName} en: ${testPath}`);
-          return testPath;
-        } else {
-          console.log(`❌ No encontrado en: ${testPath}`);
+      // Función para encontrar el binario de dfu-util
+      const findBinary = (binaryName) => {
+        const possiblePaths = [
+          // Desarrollo
+          path.join(__dirname, 'bin', binaryName),
+          // Producción - extraResources (ubicación principal)
+          path.join(process.resourcesPath, 'bin', binaryName),
+          // Producción - app.asar.unpacked (fallback)
+          path.join(process.resourcesPath, 'app.asar.unpacked', 'bin', binaryName)
+        ];
+
+        for (const testPath of possiblePaths) {
+          if (fs.existsSync(testPath)) {
+            mainWindow.webContents.send('flash-progress', `✅ Encontrado ${binaryName} en: ${testPath}\n`);
+            return testPath;
+          } else {
+            mainWindow.webContents.send('flash-progress', `❌ No encontrado en: ${testPath}\n`);
+          }
         }
-      }
 
-      return null;
-    };
+        return null;
+      };
 
-    const dfuUtilPath = findBinary('dfu-util');
-    const libusbPath = findBinary('libusb-1.0.0.dylib');
+      const dfuUtilPath = findBinary('dfu-util');
+      const libusbPath = findBinary('libusb-1.0.0.dylib');
 
-    if (!dfuUtilPath) {
-      const errorMsg = 'No se encontró dfu-util. Rutas buscadas:\n' +
-        `- ${path.join(__dirname, 'bin', 'dfu-util')}\n` +
-        `- ${path.join(process.resourcesPath, 'app.asar.unpacked', 'bin', 'dfu-util')}\n` +
-        `- ${path.join(process.resourcesPath, 'bin', 'dfu-util')}`;
+      if (!dfuUtilPath) {
+        const errorMsg = 'No se encontró dfu-util en ninguna ubicación';
+        mainWindow.webContents.send('flash-progress', `❌ ${errorMsg}\n`);
 
-      console.error(errorMsg);
-      mainWindow.webContents.send('flash-progress', errorMsg);
-
-      resolve({
-        success: false,
-        error: 'dfu-util no encontrado',
-        output: errorMsg
-      });
-      return;
-    }
-
-    // Hacer el binario ejecutable
-    try {
-      fs.chmodSync(dfuUtilPath, 0o755);
-    } catch (e) {
-      console.log('No se pudo cambiar permisos (puede ser normal):', e.message);
-    }
-
-    // Comando dfu-util para Daisy (STM32F7)
-    let command;
-    if (libusbPath) {
-      command = `DYLD_LIBRARY_PATH="${path.dirname(libusbPath)}" "${dfuUtilPath}" -a 0 -s 0x08000000:leave -D "${firmwarePath}"`;
-    } else {
-      command = `"${dfuUtilPath}" -a 0 -s 0x08000000:leave -D "${firmwarePath}"`;
-    }
-
-    console.log('Ejecutando comando:', command);
-    mainWindow.webContents.send('flash-progress', `Ejecutando: ${command}\n`);
-
-    const process = exec(command, (error, stdout, stderr) => {
-      if (error) {
         resolve({
           success: false,
-          error: error.message,
-          output: stderr || stdout
+          error: 'dfu-util no encontrado',
+          output: errorMsg
         });
         return;
       }
 
-      resolve({
-        success: true,
-        output: stdout
+      // Hacer el binario ejecutable
+      try {
+        fs.chmodSync(dfuUtilPath, 0o755);
+        mainWindow.webContents.send('flash-progress', `✅ Permisos de ejecución establecidos\n`);
+      } catch (e) {
+        mainWindow.webContents.send('flash-progress', `⚠️  No se pudieron cambiar permisos: ${e.message}\n`);
+      }
+
+      // Comando dfu-util para Daisy (STM32F7)
+      let command;
+      if (libusbPath) {
+        command = `DYLD_LIBRARY_PATH="${path.dirname(libusbPath)}" "${dfuUtilPath}" -a 0 -s 0x08000000:leave -D "${firmwarePath}"`;
+      } else {
+        command = `"${dfuUtilPath}" -a 0 -s 0x08000000:leave -D "${firmwarePath}"`;
+      }
+
+      mainWindow.webContents.send('flash-progress', `\n🚀 Ejecutando comando:\n${command}\n\n`);
+
+      const childProcess = exec(command, (error, stdout, stderr) => {
+        const fullOutput = (stdout || '') + (stderr || '');
+        const isActuallyFinished = fullOutput.includes('File downloaded successfully') ||
+          fullOutput.includes('Download done');
+
+        if (error && !isActuallyFinished) {
+          resolve({
+            success: false,
+            error: error.message,
+            output: fullOutput
+          });
+          return;
+        }
+
+        resolve({
+          success: true,
+          output: fullOutput
+        });
+      });
+
+      // Enviar output en tiempo real
+      childProcess.stdout.on('data', (data) => {
+        mainWindow.webContents.send('flash-progress', data.toString());
+      });
+
+      childProcess.stderr.on('data', (data) => {
+        mainWindow.webContents.send('flash-progress', data.toString());
       });
     });
-
-    // Enviar output en tiempo real
-    process.stdout.on('data', (data) => {
-      mainWindow.webContents.send('flash-progress', data.toString());
-    });
-
-    process.stderr.on('data', (data) => {
-      mainWindow.webContents.send('flash-progress', data.toString());
-    });
-  });
+  } catch (error) {
+    mainWindow.webContents.send('flash-progress', `❌ Error inesperado: ${error.message}\n`);
+    mainWindow.webContents.send('flash-progress', `Stack: ${error.stack}\n`);
+    return {
+      success: false,
+      error: error.message,
+      output: error.stack
+    };
+  }
 });
 
 // Refrescar estado de conexión

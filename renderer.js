@@ -1,170 +1,158 @@
-// Estado de la aplicación
-let isDaisyConnected = false;
-let selectedFirmwarePath = null;
-let isFlashing = false;
-
-// Elementos del DOM
-const connectionDot = document.getElementById('connectionDot');
+// Referencias a elementos del DOM
 const connectionStatus = document.getElementById('connectionStatus');
 const connectionSubtext = document.getElementById('connectionSubtext');
+const connectionDot = document.getElementById('connectionDot');
 const refreshBtn = document.getElementById('refreshBtn');
+const firmwarePathInput = document.getElementById('firmwarePath');
 const selectFileBtn = document.getElementById('selectFileBtn');
-const firmwarePath = document.getElementById('firmwarePath');
 const flashBtn = document.getElementById('flashBtn');
-const logSection = document.getElementById('logSection');
 const logOutput = document.getElementById('logOutput');
 const clearLogsBtn = document.getElementById('clearLogsBtn');
-const dfuWarning = document.getElementById('dfuWarning');
 const instructions = document.getElementById('instructions');
+const progressSection = document.getElementById('progressSection');
+const progressBar = document.getElementById('progressBar');
+const progressPercent = document.getElementById('progressPercent');
+const progressTitle = document.getElementById('progressTitle');
+const resultSection = document.getElementById('resultSection');
+const resultTitle = document.getElementById('resultTitle');
+const resultMessage = document.getElementById('resultMessage');
+const resultBanner = document.getElementById('resultBanner');
 
-// Verificar dfu-util al inicio
-async function checkDfuUtil() {
-    const result = await window.electronAPI.checkDfuUtil();
-    if (!result.installed) {
-        dfuWarning.classList.remove('hidden');
-        flashBtn.disabled = true;
-    } else {
-        dfuWarning.classList.add('hidden');
-        updateFlashButtonState();
-    }
-}
+let firmwarePath = '';
+let isFlashing = false;
 
-// Actualizar estado de conexión
-function updateConnectionStatus(connected) {
-    isDaisyConnected = connected;
+// Inicialización
+document.addEventListener('DOMContentLoaded', async () => {
+    updateView();
+});
 
-    if (connected) {
-        connectionDot.className = 'dot connected';
-        connectionStatus.textContent = 'Daisy Conectado';
-        connectionSubtext.textContent = 'Listo para cargar firmware';
-        instructions.classList.add('hidden');
-    } else {
-        connectionDot.className = 'dot disconnected';
-        connectionStatus.textContent = 'Daisy No Conectado';
-        connectionSubtext.textContent = 'Conecta tu placa en modo DFU';
-        instructions.classList.remove('hidden');
-    }
-
-    updateFlashButtonState();
-}
-
-// Actualizar estado del botón de flash
-function updateFlashButtonState() {
-    flashBtn.disabled = !isDaisyConnected || !selectedFirmwarePath || isFlashing;
-}
-
-// Agregar línea al log
-function addLog(message, type = 'info') {
-    const line = document.createElement('div');
-    line.className = `log-line ${type}`;
-    line.textContent = message;
-    logOutput.appendChild(line);
-    logOutput.scrollTop = logOutput.scrollHeight;
-
-    if (logSection.classList.contains('hidden')) {
-        logSection.classList.remove('hidden');
-    }
-}
-
-// Limpiar logs
-function clearLogs() {
-    logOutput.innerHTML = '';
-}
-
-// Seleccionar archivo de firmware
-async function selectFirmware() {
+// Seleccionar archivo
+selectFileBtn.addEventListener('click', async () => {
     const result = await window.electronAPI.selectFirmware();
     if (result.success) {
-        selectedFirmwarePath = result.path;
-        const fileName = result.path.split('/').pop();
-        firmwarePath.value = fileName;
-        addLog(`📁 Archivo seleccionado: ${fileName}`, 'info');
-        updateFlashButtonState();
+        firmwarePath = result.path;
+        firmwarePathInput.value = firmwarePath.split('/').pop();
+        updateView();
     }
-}
+});
 
-// Cargar firmware
-async function flashFirmware() {
-    if (!isDaisyConnected || !selectedFirmwarePath || isFlashing) {
-        return;
-    }
+// Iniciar Carga
+flashBtn.addEventListener('click', async () => {
+    if (!firmwarePath || isFlashing) return;
 
+    // Resetear UI para nueva carga
     isFlashing = true;
-    flashBtn.disabled = true;
-    connectionDot.className = 'dot flashing';
-    connectionStatus.textContent = 'Cargando Firmware...';
-    connectionSubtext.textContent = 'No desconectes la placa';
+    updateView();
 
-    clearLogs();
-    addLog('🚀 Iniciando carga de firmware...', 'info');
-    addLog(`📄 Archivo: ${selectedFirmwarePath}`, 'info');
-    addLog('⏳ Esto puede tardar unos segundos...', 'info');
+    // Preparar progreso
+    progressSection.classList.remove('hidden');
+    resultSection.classList.add('hidden');
+    progressBar.style.width = '0%';
+    progressPercent.innerText = '0%';
+    progressTitle.innerText = 'Iniciando carga...';
+
+    logOutput.innerHTML += `🚀 Iniciando carga de ${firmwarePath}\n`;
 
     try {
-        const result = await window.electronAPI.flashFirmware(selectedFirmwarePath);
+        const result = await window.electronAPI.flashFirmware(firmwarePath);
 
+        isFlashing = false;
         if (result.success) {
-            addLog('✅ ¡Firmware cargado exitosamente!', 'success');
-            addLog('🎉 Puedes desconectar tu Daisy', 'success');
-            connectionStatus.textContent = 'Carga Completada';
-            connectionSubtext.textContent = '¡Firmware instalado correctamente!';
+            handleFlashSuccess();
         } else {
-            addLog('❌ Error al cargar firmware', 'error');
-            addLog(`Error: ${result.error}`, 'error');
-            if (result.output) {
-                addLog(result.output, 'error');
-            }
-            connectionStatus.textContent = 'Error en la Carga';
-            connectionSubtext.textContent = 'Revisa los logs para más detalles';
+            handleFlashError(result.error || result.output);
         }
     } catch (error) {
-        addLog('❌ Error inesperado', 'error');
-        addLog(error.message, 'error');
-    } finally {
         isFlashing = false;
-        updateFlashButtonState();
+        handleFlashError(error.message);
+    }
 
-        // Refrescar estado de conexión después de un momento
-        setTimeout(() => {
-            window.electronAPI.refreshConnection();
-        }, 2000);
+    updateView();
+});
+
+// Refrescar conexión manualmente
+refreshBtn.addEventListener('click', async () => {
+    await window.electronAPI.refreshConnection();
+});
+
+// Limpiar logs
+clearLogsBtn.addEventListener('click', () => {
+    logOutput.innerHTML = '';
+});
+
+// Escuchar cambios de conexión
+window.electronAPI.onDaisyConnected((isConnected) => {
+    if (isConnected) {
+        connectionStatus.innerText = 'Daisy Conectada';
+        connectionSubtext.innerText = 'Lista para cargar firmware';
+        connectionDot.className = 'dot connected';
+        instructions.classList.add('hidden');
+    } else {
+        connectionStatus.innerText = 'Buscando Daisy...';
+        connectionSubtext.innerText = 'Conecta tu placa en modo DFU';
+        connectionDot.className = 'dot disconnected';
+        if (!isFlashing) {
+            instructions.classList.remove('hidden');
+        }
+    }
+    updateView();
+});
+
+// Escuchar progreso del flash
+window.electronAPI.onFlashProgress((data) => {
+    // Añadir al log técnico
+    logOutput.innerHTML += data;
+    logOutput.scrollTop = logOutput.scrollHeight;
+
+    // Intentar extraer porcentaje de dfu-util (formato: 45%)
+    const percentMatch = data.match(/(\d+)%/);
+    if (percentMatch) {
+        const percent = percentMatch[1];
+        progressBar.style.width = `${percent}%`;
+        progressPercent.innerText = `${percent}%`;
+        progressTitle.innerText = 'Transfiriendo firmware...';
+    }
+
+    // Detectar fases finales
+    if (data.includes('Download done')) {
+        progressBar.style.width = '100%';
+        progressPercent.innerText = '100%';
+        progressTitle.innerText = 'Verificando y finalizando...';
+    }
+});
+
+function handleFlashSuccess() {
+    progressSection.classList.add('hidden');
+    resultSection.classList.remove('hidden');
+    resultBanner.className = 'result-banner success';
+    resultTitle.innerText = '¡Carga Exitosa!';
+    resultMessage.innerText = 'El firmware se ha instalado y la Daisy se está reiniciando.';
+
+    logOutput.innerHTML += '\n✅ PROCESO FINALIZADO CON ÉXITO\n';
+}
+
+function handleFlashError(error) {
+    progressSection.classList.add('hidden');
+    resultSection.classList.remove('hidden');
+    resultBanner.className = 'result-banner error';
+    resultTitle.innerText = 'Error en la carga';
+    resultMessage.innerText = 'No se pudo completar la operación. Revisa los detalles técnicos.';
+
+    logOutput.innerHTML += `\n❌ ERROR: ${error}\n`;
+}
+
+function updateView() {
+    const isConnected = connectionDot.classList.contains('connected');
+
+    // El botón de flash solo se activa si hay conexión y archivo seleccionado
+    flashBtn.disabled = !isConnected || !firmwarePath || isFlashing;
+
+    // Si estamos cargando, deshabilitamos el selector
+    selectFileBtn.disabled = isFlashing;
+
+    if (isFlashing) {
+        flashBtn.innerText = 'Cargando...';
+    } else {
+        flashBtn.innerText = 'Iniciar Carga';
     }
 }
-
-// Refrescar conexión
-async function refreshConnection() {
-    refreshBtn.style.transform = 'rotate(360deg)';
-    await window.electronAPI.refreshConnection();
-    setTimeout(() => {
-        refreshBtn.style.transform = '';
-    }, 500);
-}
-
-// Event Listeners
-selectFileBtn.addEventListener('click', selectFirmware);
-flashBtn.addEventListener('click', flashFirmware);
-refreshBtn.addEventListener('click', refreshConnection);
-clearLogsBtn.addEventListener('click', clearLogs);
-
-// Escuchar eventos de conexión
-window.electronAPI.onDaisyConnected((connected) => {
-    updateConnectionStatus(connected);
-});
-
-// Escuchar progreso de flash
-window.electronAPI.onFlashProgress((data) => {
-    // Filtrar líneas vacías
-    const lines = data.trim().split('\n').filter(line => line.length > 0);
-    lines.forEach(line => {
-        if (line.includes('Error') || line.includes('error')) {
-            addLog(line, 'error');
-        } else if (line.includes('Done') || line.includes('success')) {
-            addLog(line, 'success');
-        } else {
-            addLog(line, 'info');
-        }
-    });
-});
-
-// Inicializar
-checkDfuUtil();

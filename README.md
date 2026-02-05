@@ -1,127 +1,79 @@
-# Daisy Firmware Loader
+# 🌼 Daisy Firmware Loader
 
-Aplicación nativa para macOS que permite cargar firmwares a placas Daisy Electrosmith sin necesidad de usar la web de Electrosmith.
+Una aplicación moderna, elegante y nativa para macOS diseñada para cargar firmwares en placas **Daisy (Electrosmith)** de forma sencilla y fiable.
 
-## Características
+![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)
+![Platform](https://img.shields.io/badge/platform-macOS-lightgrey.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
 
-- ✅ Detección automática de placas Daisy en modo DFU
-- ✅ Interfaz simple e intuitiva
-- ✅ Selector de archivos .bin
-- ✅ Logs en tiempo real del proceso de carga
-- ✅ Instrucciones integradas para poner Daisy en modo DFU
+## ✨ Características Premium
 
-## Requisitos Previos
+- 🔌 **Plug & Play**: Detección automática de placas Daisy en modo DFU mediante polling de sistema ultra-ligero.
+- 📊 **Progreso Real**: Barra de progreso animada que muestra el estado de la carga en tiempo real.
+- 📦 **Binarios Integrados**: Incluye `dfu-util` y `libusb` pre-compilados (Intel y Apple Silicon) para que funcione "fuera de la caja".
+- 🎨 **Interfaz Moderna**: Diseño oscuro (Glassmorphism) con animaciones suaves y feedback visual claro.
+- 📂 **Selector Inteligente**: Solo selecciona archivos `.bin` válidos.
+- 🛠️ **Consola Avanzada**: Logs técnicos detallados ocultos tras un panel colapsable para usuarios avanzados.
+- 🔐 **Firma de Seguridad**: Script incluido para firma ad-hoc y evitar avisos de Gatekeeper.
 
-Antes de usar la aplicación, necesitas instalar `dfu-util`:
+## 🚀 Instalación Rápida
 
+### Descargar la App
+1. Ve a la sección de **Releases** (o compílalo tú mismo).
+2. Descarga el archivo `.dmg`.
+3. Arrastra a Aplicaciones.
+
+### Requisitos Técnicos
+Aunque los binarios están integrados, se recomienda tener `dfu-util` instalado en el sistema para máxima compatibilidad:
 ```bash
 brew install dfu-util
 ```
 
-Si no tienes Homebrew instalado, puedes instalarlo desde [brew.sh](https://brew.sh)
+## 🛠️ Desarrollo y Compilación
 
-## Instalación para Desarrollo
+Si quieres contribuir o compilar tu propia versión:
 
-1. Clona o descarga este repositorio
-2. Instala las dependencias:
+1. **Clonar el repositorio:**
+   ```bash
+   git clone https://github.com/Pepebotika1980/daisy-firmware-loader.git
+   cd daisy-firmware-loader
+   ```
 
-```bash
-npm install
-```
+2. **Instalar dependencias:**
+   ```bash
+   npm install
+   ```
 
-3. Ejecuta la aplicación en modo desarrollo:
+3. **Ejecutar en modo desarrollo:**
+   ```bash
+   npm start
+   ```
 
-```bash
-npm start
-```
+4. **Compilar para macOS (.dmg):**
+   ```bash
+   npm run build
+   # Luego garantiza que la app pueda abrirse:
+   ./sign-app.sh
+   ```
 
-## Compilar la Aplicación
+## 📖 Cómo Usar
 
-Para crear una aplicación .dmg para macOS:
+1. **Modo DFU**: En tu placa Daisy, mantén pulsado **BOOT**, pulsa y suelta **RESET**, y finalmente suelta **BOOT**. El LED debe dejar de parpadear.
+2. **Conexión**: Conecta el USB. El indicador en la app pasará a verde: `Daisy Conectada`.
+3. **Selección**: Elige tu archivo `.bin`.
+4. **Carga**: Haz clic en **Iniciar Carga**. Verás la barra de progreso moverse.
+5. **Finalización**: Cuando veas el banner de éxito, tu Daisy se reiniciará automáticamente con el nuevo firmware.
 
-```bash
-npm run build
-```
+## 📁 Estructura del Proyecto
 
-Esto generará un archivo .dmg en la carpeta `dist/` que puedes distribuir e instalar en cualquier Mac.
+- `main.js`: Lógica del proceso principal y manejo de binarios.
+- `renderer.js`: Manejo de la interfaz y barra de progreso.
+- `bin/`: Binarios nativos de `dfu-util` y `libusb`.
+- `styles.css`: Diseño moderno basado en variables CSS.
 
-### Evitar Avisos de Seguridad de macOS
+## 📄 Licencia
 
-Después de compilar, firma la aplicación para evitar los avisos de seguridad:
+Este proyecto está bajo la licencia MIT.
 
-```bash
-./sign-app.sh
-```
-
-O manualmente:
-
-```bash
-codesign --force --deep --sign - "dist/mac/Daisy Firmware Loader.app"
-```
-
-**Nota**: La firma ad-hoc (con `-`) solo funciona en el Mac donde compilaste la app. Para distribuir a otros usuarios, necesitarías una cuenta de desarrollador de Apple y firmar con un certificado válido.
-
-## Cómo Usar
-
-1. **Pon tu Daisy en modo DFU:**
-   - Mantén presionado el botón **BOOT**
-   - Presiona y suelta el botón **RESET**
-   - Suelta el botón **BOOT**
-   - El LED debería dejar de parpadear
-
-2. **Conecta la placa** a tu Mac mediante USB
-
-3. **Selecciona el archivo** de firmware (.bin)
-
-4. **Haz clic en "Cargar Firmware"**
-
-5. **Espera** a que se complete el proceso (unos segundos)
-
-6. **¡Listo!** Tu Daisy ahora tiene el nuevo firmware
-
-## Estructura del Proyecto
-
-```
-.
-├── main.js          # Proceso principal de Electron
-├── preload.js       # Script de preload (seguridad)
-├── renderer.js      # Lógica de la interfaz
-├── index.html       # Estructura HTML
-├── styles.css       # Estilos
-├── package.json     # Configuración del proyecto
-└── README.md        # Este archivo
-```
-
-## Tecnologías Utilizadas
-
-- **Electron** - Framework para aplicaciones de escritorio
-- **Node.js** - Runtime de JavaScript
-- **dfu-util** - Herramienta para cargar firmware DFU
-- **usb-detection** - Detección de dispositivos USB
-
-## Solución de Problemas
-
-### La aplicación no detecta mi Daisy
-
-- Asegúrate de que la placa esté en modo DFU (el LED debe dejar de parpadear)
-- Intenta desconectar y reconectar la placa
-- Haz clic en el botón de refrescar (icono de flechas circulares)
-
-### Error: "dfu-util no está instalado"
-
-- Instala dfu-util usando Homebrew: `brew install dfu-util`
-- Reinicia la aplicación después de instalar
-
-### El firmware no se carga
-
-- Verifica que el archivo .bin sea compatible con tu placa Daisy
-- Asegúrate de que el cable USB funcione correctamente
-- Revisa los logs en la aplicación para más detalles del error
-
-## Licencia
-
-MIT
-
-## Autor
-
-Xavioxi - 2026
+---
+Hecho con ❤️ para la comunidad de **Daisy Electrosmith** por Pepebotika1980 & Antigravity.

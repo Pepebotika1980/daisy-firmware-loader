@@ -1,18 +1,20 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Daisy Firmware Loader</title>
   <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
   <div class="container">
     <header>
       <div class="logo">
         <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="20" cy="20" r="18" stroke="url(#gradient)" stroke-width="2"/>
-          <path d="M20 10 L20 30 M10 20 L30 20" stroke="url(#gradient)" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="20" cy="20" r="18" stroke="url(#gradient)" stroke-width="2" />
+          <path d="M20 10 L20 30 M10 20 L30 20" stroke="url(#gradient)" stroke-width="2" stroke-linecap="round" />
           <defs>
             <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" style="stop-color:#6C63FF;stop-opacity:1" />
@@ -25,8 +27,8 @@
     </header>
 
     <main>
-      <!-- Estado de conexión -->
-      <div class="status-card">
+      <!-- Estado de conexión Principal -->
+      <section class="main-status status-card">
         <div class="status-indicator">
           <div id="connectionDot" class="dot disconnected"></div>
           <div class="status-text">
@@ -36,68 +38,90 @@
         </div>
         <button id="refreshBtn" class="icon-btn" title="Refrescar">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
           </svg>
         </button>
-      </div>
+      </section>
 
-      <!-- Instrucciones -->
+      <!-- Panel de Acción -->
+      <section class="action-panel">
+        <div class="firmware-selector">
+          <div class="file-input-group">
+            <div class="input-with-label">
+              <label for="firmwarePath">Archivo de Firmware (.bin)</label>
+              <input type="text" id="firmwarePath" placeholder="Selecciona el firmware para cargar" readonly>
+            </div>
+            <button id="selectFileBtn" class="btn-secondary">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+                <polyline points="13 2 13 9 20 9" />
+              </svg>
+              Seleccionar
+            </button>
+          </div>
+        </div>
+
+        <button id="flashBtn" class="btn-primary" disabled>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+          </svg>
+          Iniciar Carga
+        </button>
+      </section>
+
+      <!-- Sección de Progreso (Oculta por defecto) -->
+      <section id="progressSection" class="progress-section hidden">
+        <div class="progress-header">
+          <span id="progressTitle">Cargando firmware...</span>
+          <span id="progressPercent">0%</span>
+        </div>
+        <div class="progress-bar-container">
+          <div id="progressBar" class="progress-bar"></div>
+        </div>
+        <p id="progressSubtext" class="progress-subtext text-muted">Transmitiendo datos a la memoria flash...</p>
+      </section>
+
+      <!-- Estado Final (Oculto) -->
+      <section id="resultSection" class="result-section hidden">
+        <div class="result-banner success" id="resultBanner">
+          <div class="result-icon" id="resultIcon">✅</div>
+          <div class="result-content">
+            <h4 id="resultTitle">¡Carga completa!</h4>
+            <p id="resultMessage">El firmware se ha instalado correctamente.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Detalles Técnicos (Colapsable) -->
+      <details id="advancedSection" class="advanced-section">
+        <summary>Ver detalles técnicos</summary>
+        <div id="logSection" class="log-section">
+          <div class="log-header">
+            <h4>Consola de Salida</h4>
+            <button id="clearLogsBtn" class="btn-text">Limpiar</button>
+          </div>
+          <div id="logOutput" class="log-output"></div>
+        </div>
+      </details>
+
+      <!-- Instrucciones (Solo si no hay conexión) -->
       <div id="instructions" class="info-card">
-        <h4>📌 Cómo poner Daisy en modo DFU:</h4>
+        <h4>📌 Ayuda: Modo DFU</h4>
         <ol>
-          <li>Mantén presionado el botón <strong>BOOT</strong></li>
-          <li>Presiona y suelta el botón <strong>RESET</strong></li>
-          <li>Suelta el botón <strong>BOOT</strong></li>
-          <li>El LED debería dejar de parpadear</li>
+          <li>Mantén pulsado <strong>BOOT</strong></li>
+          <li>Pulsa y suelta <strong>RESET</strong></li>
+          <li>Suelta <strong>BOOT</strong></li>
         </ol>
       </div>
 
-      <!-- Selector de firmware -->
-      <div class="firmware-section">
-        <label for="firmwarePath">Archivo de Firmware (.bin)</label>
-        <div class="file-input-group">
-          <input type="text" id="firmwarePath" placeholder="Selecciona un archivo .bin" readonly>
-          <button id="selectFileBtn" class="btn-secondary">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
-              <polyline points="13 2 13 9 20 9"/>
-            </svg>
-            Buscar
-          </button>
-        </div>
-      </div>
-
-      <!-- Botón de carga -->
-      <button id="flashBtn" class="btn-primary" disabled>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-        </svg>
-        Cargar Firmware
-      </button>
-
-      <!-- Área de logs -->
-      <div id="logSection" class="log-section hidden">
-        <div class="log-header">
-          <h4>Registro de Operación</h4>
-          <button id="clearLogsBtn" class="btn-text">Limpiar</button>
-        </div>
-        <div id="logOutput" class="log-output"></div>
-      </div>
-
-      <!-- Advertencia dfu-util -->
-      <div id="dfuWarning" class="warning-card hidden">
-        <h4>⚠️ dfu-util no está instalado</h4>
-        <p>Para usar esta aplicación necesitas instalar dfu-util:</p>
-        <code>brew install dfu-util</code>
-        <p class="small-text">Si no tienes Homebrew, instálalo desde <a href="https://brew.sh" target="_blank">brew.sh</a></p>
-      </div>
     </main>
 
     <footer>
-      <p>Hecho con ❤️ para Daisy | v1.1.0</p>
+      <p>Daisy Firmware Loader v1.2.0 | <span id="envIndicator">Modo Producción</span></p>
     </footer>
   </div>
 
   <script src="renderer.js"></script>
 </body>
+
 </html>
