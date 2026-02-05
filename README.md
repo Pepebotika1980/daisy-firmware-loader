@@ -12,7 +12,7 @@ Una aplicación moderna, elegante y nativa para macOS diseñada para cargar firm
 - 📊 **Progreso Real**: Barra de progreso animada que muestra el estado de la carga en tiempo real.
 - 📦 **Binarios Integrados**: Incluye `dfu-util` y `libusb` pre-compilados (Intel y Apple Silicon) para que funcione "fuera de la caja".
 - 🎨 **Interfaz Moderna**: Diseño oscuro (Glassmorphism) con animaciones suaves y feedback visual claro.
-- 📂 **Selector Inteligente**: Solo selecciona archivos `.bin` válidos.
+- 📂 **Selector Inteligente**: Soporta archivos `.bin` y `.hex`. Los archivos `.hex` se convierten automáticamente a binario en milisegundos.
 - 🛠️ **Consola Avanzada**: Logs técnicos detallados ocultos tras un panel colapsable para usuarios avanzados.
 - 🔐 **Firma de Seguridad**: Script incluido para firma ad-hoc y evitar avisos de Gatekeeper.
 
@@ -60,8 +60,8 @@ Si quieres contribuir o compilar tu propia versión:
 
 1. **Modo DFU**: En tu placa Daisy, mantén pulsado **BOOT**, pulsa y suelta **RESET**, y finalmente suelta **BOOT**. El LED debe dejar de parpadear.
 2. **Conexión**: Conecta el USB. El indicador en la app pasará a verde: `Daisy Conectada`.
-3. **Selección**: Elige tu archivo `.bin`.
-4. **Carga**: Haz clic en **Iniciar Carga**. Verás la barra de progreso moverse.
+3. **Selección**: Elige tu archivo `.bin` o `.hex`.
+4. **Carga**: Haz clic en **Iniciar Carga**. Si seleccionaste un `.hex`, la aplicación lo convertirá automáticamente antes de iniciar la transferencia.
 5. **Finalización**: Cuando veas el banner de éxito, tu Daisy se reiniciará automáticamente con el nuevo firmware.
 
 ## 📁 Estructura del Proyecto
