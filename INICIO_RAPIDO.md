@@ -1,44 +1,38 @@
-# 🚀 Inicio Rápido - Daisy Firmware Loader v1.1.0
+# 🚀 Guía de Inicio Rápido - Daisy Firmware Loader
 
-## ✨ ¡NOVEDAD! Ya no necesitas instalar dfu-util
+## Para Usuarios
 
-La versión 1.1.0 incluye dfu-util integrado. ¡Solo instala y usa!
+### 1️⃣ Descarga la Aplicación
+- Descarga el archivo `.dmg` de la última versión
+- Abre el `.dmg` y arrastra la aplicación a tu carpeta de Aplicaciones
 
----
+### 2️⃣ Primera Ejecución
+Al abrir la aplicación por primera vez:
+1. Haz clic derecho en la aplicación
+2. Selecciona "Abrir"
+3. Confirma que quieres abrir la aplicación
 
-## Para Usuarios (Instalar la App)
+**Nota**: Solo necesitas hacer esto la primera vez. Después se abrirá normalmente.
 
-### 1️⃣ Instalar la Aplicación
-- Abre el archivo `.dmg` de la carpeta `dist/`:
-  - **Mac Intel**: `Daisy Firmware Loader-1.1.0.dmg`
-  - **Mac Apple Silicon (M1/M2/M3)**: `Daisy Firmware Loader-1.1.0-arm64.dmg`
-- Arrastra la app a Aplicaciones
-- Abre la app (clic derecho → Abrir la primera vez)
-
-### 2️⃣ Usar la Aplicación
-1. Pon tu Daisy en modo DFU (BOOT + RESET)
-2. Conecta la placa al Mac
-3. Selecciona el archivo .bin
+### 3️⃣ Usar la Aplicación
+1. Pon tu Daisy en modo DFU (ver instrucciones en la app)
+2. Conecta la placa por USB
+3. Selecciona el archivo `.bin` del firmware
 4. Haz clic en "Cargar Firmware"
-5. ¡Listo!
-
-📖 **Más detalles**: Lee `INSTALACION.md`
+5. ¡Listo! Espera unos segundos
 
 ---
 
-## Para Desarrolladores (Modificar el Código)
+## Para Desarrolladores
 
-### Instalar Dependencias
+### Instalación
 ```bash
+git clone https://github.com/TU-USUARIO/daisy-firmware-loader.git
+cd daisy-firmware-loader
 npm install
 ```
 
-### Reconstruir Módulos Nativos
-```bash
-npx electron-rebuild
-```
-
-### Ejecutar en Modo Desarrollo
+### Ejecutar en Desarrollo
 ```bash
 npm start
 ```
@@ -48,34 +42,48 @@ npm start
 npm run build
 ```
 
-Los archivos .dmg se generarán en la carpeta `dist/`
+### Firmar la Aplicación (Evitar Avisos de Seguridad)
+Después de compilar:
+```bash
+./sign-app.sh
+```
 
-📖 **Más detalles**: Lee `README.md`
-
----
-
-## 📁 Archivos Importantes
-
-- **Aplicaciones compiladas**: `dist/*.dmg`
-- **Código fuente**: `main.js`, `renderer.js`, `preload.js`, `index.html`, `styles.css`
-- **Binarios incluidos**: `bin/dfu-util`, `bin/libusb-1.0.0.dylib`
-- **Documentación completa**: `INSTALACION.md`
-- **Resumen del proyecto**: `RESUMEN.md`
-
-## ⚡ Solución Rápida de Problemas
-
-**No detecta la placa**: Verifica modo DFU (LED apagado)  
-**App no abre**: Clic derecho → Abrir (primera vez)  
-**Error al cargar**: Verifica que el archivo .bin sea compatible con tu Daisy
+O manualmente:
+```bash
+codesign --force --deep --sign - "dist/mac/Daisy Firmware Loader.app"
+```
 
 ---
 
-## 🎉 Cambios en v1.1.0
+## Solución de Problemas
 
-- ✅ **dfu-util incluido**: Ya no necesitas instalarlo por separado
-- ✅ **Plug & Play**: Instala y usa inmediatamente
-- ✅ **Más fácil**: Sin dependencias externas
+### ❌ "La aplicación no se puede abrir"
+- Haz clic derecho → Abrir (primera vez)
+- O ve a Preferencias del Sistema → Seguridad y Privacidad → Abrir igualmente
+
+### ❌ "No detecta mi Daisy"
+- Asegúrate de que esté en modo DFU (LED apagado)
+- Desconecta y reconecta la placa
+- Haz clic en el botón de refrescar
+
+### ❌ Error al cargar firmware
+- Verifica que el archivo `.bin` sea compatible
+- Revisa los logs en la aplicación
+- Asegúrate de que el cable USB funcione
 
 ---
 
-**¿Necesitas ayuda?** Lee la documentación completa en `INSTALACION.md`
+## Características
+
+✅ Detección automática de Daisy en modo DFU  
+✅ Sin dependencias externas (dfu-util incluido)  
+✅ Interfaz simple e intuitiva  
+✅ Logs en tiempo real  
+✅ Instrucciones integradas  
+✅ Compatible con macOS (Intel y Apple Silicon)  
+
+---
+
+## Licencia
+
+MIT © 2026 Xavioxi
