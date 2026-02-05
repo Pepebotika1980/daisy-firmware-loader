@@ -99,31 +99,34 @@ function checkDaisyConnection() {
   });
 }
 
-// Verificar si dfu-util está instalado (ahora siempre retorna true porque está incluido)
+// Verificar si dfu-util está instalado
 ipcMain.handle('check-dfu-util', async () => {
   const fs = require('fs');
 
-  // Cuando está empaquetado, los archivos desempaquetados están en app.asar.unpacked
-  let bundledDfuUtil = path.join(__dirname, 'bin', 'dfu-util');
-  if (!fs.existsSync(bundledDfuUtil)) {
-    // Intentar en app.asar.unpacked
-    bundledDfuUtil = path.join(process.resourcesPath, 'app.asar.unpacked', 'bin', 'dfu-util');
+  const possiblePaths = [
+    // Desarrollo
+    path.join(__dirname, 'bin', 'dfu-util'),
+    // Producción - extraResources
+    path.join(process.resourcesPath, 'bin', 'dfu-util'),
+    // Producción - app.asar.unpacked
+    path.join(process.resourcesPath, 'app.asar.unpacked', 'bin', 'dfu-util')
+  ];
+
+  for (const testPath of possiblePaths) {
+    if (fs.existsSync(testPath)) {
+      return { installed: true, path: testPath, bundled: true };
+    }
   }
 
+  // Fallback: buscar en el sistema
   return new Promise((resolve) => {
-    // Verificar si existe el binario incluido
-    if (fs.existsSync(bundledDfuUtil)) {
-      resolve({ installed: true, path: bundledDfuUtil, bundled: true });
-    } else {
-      // Fallback: buscar en el sistema
-      exec('which dfu-util', (error, stdout) => {
-        if (error || !stdout.trim()) {
-          resolve({ installed: false });
-        } else {
-          resolve({ installed: true, path: stdout.trim(), bundled: false });
-        }
-      });
-    }
+    exec('which dfu-util', (error, stdout) => {
+      if (error || !stdout.trim()) {
+        resolve({ installed: false });
+      } else {
+        resolve({ installed: true, path: stdout.trim(), bundled: false });
+      }
+    });
   });
 });
 
@@ -156,10 +159,7 @@ ipcMain.handle('flash-firmware', async (event, firmwarePath) => {
         // Producción - extraResources (ubicación principal)
         path.join(process.resourcesPath, 'bin', binaryName),
         // Producción - app.asar.unpacked (fallback)
-        path.join(process.resourcesPath, 'app.asar.unpacked', 'bin', binaryName),
-        // Producción - dentro de app
-        path.join(app.getAppPath(), 'bin', binaryName),
-        path.join(app.getAppPath(), '..', 'bin', binaryName)
+        path.join(process.resourcesPath, 'app.asar.unpacked', 'bin', binaryName)
       ];
 
       for (const testPath of possiblePaths) {
