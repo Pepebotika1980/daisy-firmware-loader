@@ -140,7 +140,9 @@ ipcMain.handle('select-firmware', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile'],
     filters: [
-      { name: 'Firmware Binary', extensions: ['bin'] },
+      { name: 'Firmware Files', extensions: ['bin', 'hex'] },
+      { name: 'Binary Files', extensions: ['bin'] },
+      { name: 'Intel Hex Files', extensions: ['hex'] },
       { name: 'All Files', extensions: ['*'] }
     ]
   });
@@ -156,6 +158,32 @@ ipcMain.handle('flash-firmware', async (event, firmwarePath) => {
   try {
     return new Promise((resolve) => {
       const fs = require('fs');
+      const intelHex = require('intel-hex');
+      let finalPath = firmwarePath;
+      let isTempFile = false;
+
+      // Si es un archivo .hex, convertirlo a .bin temporalmente
+      if (firmwarePath.toLowerCase().endsWith('.hex')) {
+        try {
+          mainWindow.webContents.send('flash-progress', `📦 Detectado archivo .hex, convirtiendo a .bin...\n`);
+          const hexData = fs.readFileSync(firmwarePath, 'utf8');
+          const binData = intelHex.parse(hexData);
+
+          const tempBinPath = path.join(app.getPath('temp'), `temp_daisy_firmware_${Date.now()}.bin`);
+          fs.writeFileSync(tempBinPath, binData.data);
+
+          finalPath = tempBinPath;
+          isTempFile = true;
+          mainWindow.webContents.send('flash-progress', `✅ Conversión completada con éxito\n`);
+        } catch (hexError) {
+          resolve({
+            success: false,
+            error: `Error convirtiendo .hex: ${hexError.message}`,
+            output: hexError.stack
+          });
+          return;
+        }
+      }
 
       mainWindow.webContents.send('flash-progress', `🔍 Buscando dfu-util...\n`);
       mainWindow.webContents.send('flash-progress', `📁 __dirname: ${__dirname}\n`);
@@ -210,9 +238,9 @@ ipcMain.handle('flash-firmware', async (event, firmwarePath) => {
       // Comando dfu-util para Daisy (STM32F7)
       let command;
       if (libusbPath) {
-        command = `DYLD_LIBRARY_PATH="${path.dirname(libusbPath)}" "${dfuUtilPath}" -a 0 -s 0x08000000:leave -D "${firmwarePath}"`;
+        command = `DYLD_LIBRARY_PATH="${path.dirname(libusbPath)}" "${dfuUtilPath}" -a 0 -s 0x08000000:leave -D "${finalPath}"`;
       } else {
-        command = `"${dfuUtilPath}" -a 0 -s 0x08000000:leave -D "${firmwarePath}"`;
+        command = `"${dfuUtilPath}" -a 0 -s 0x08000000:leave -D "${finalPath}"`;
       }
 
       mainWindow.webContents.send('flash-progress', `\n🚀 Ejecutando comando:\n${command}\n\n`);
@@ -221,6 +249,17 @@ ipcMain.handle('flash-firmware', async (event, firmwarePath) => {
         const fullOutput = (stdout || '') + (stderr || '');
         const isActuallyFinished = fullOutput.includes('File downloaded successfully') ||
           fullOutput.includes('Download done');
+
+        // Limpiar archivo temporal si existe
+        if (isTempFile) {
+          try {
+            const fs = require('fs');
+            fs.unlinkSync(finalPath);
+            mainWindow.webContents.send('flash-progress', `\n🧹 Archivo temporal eliminado\n`);
+          } catch (e) {
+            console.error('Error eliminando temporal:', e);
+          }
+        }
 
         if (error && !isActuallyFinished) {
           resolve({
