@@ -45,6 +45,22 @@ npm run build
 
 Esto generará un archivo .dmg en la carpeta `dist/` que puedes distribuir e instalar en cualquier Mac.
 
+### Evitar Avisos de Seguridad de macOS
+
+Después de compilar, firma la aplicación para evitar los avisos de seguridad:
+
+```bash
+./sign-app.sh
+```
+
+O manualmente:
+
+```bash
+codesign --force --deep --sign - "dist/mac/Daisy Firmware Loader.app"
+```
+
+**Nota**: La firma ad-hoc (con `-`) solo funciona en el Mac donde compilaste la app. Para distribuir a otros usuarios, necesitarías una cuenta de desarrollador de Apple y firmar con un certificado válido.
+
 ## Cómo Usar
 
 1. **Pon tu Daisy en modo DFU:**

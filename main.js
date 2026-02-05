@@ -1,13 +1,10 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const { exec } = require('child_process');
-const usbDetection = require('usb-detection');
 
 let mainWindow;
-
-// IDs de vendor/producto para Daisy en modo DFU (STM32 DFU)
-const DAISY_DFU_VENDOR_ID = 0x0483;
-const DAISY_DFU_PRODUCT_ID = 0xdf11;
+let connectionCheckInterval;
+let lastConnectionState = false;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -29,29 +26,20 @@ function createWindow() {
 app.whenReady().then(() => {
   createWindow();
 
-  // Iniciar monitoreo USB
-  usbDetection.startMonitoring();
-
-  // Detectar cuando se conecta un dispositivo
-  usbDetection.on('add', (device) => {
-    if (device.vendorId === DAISY_DFU_VENDOR_ID && device.productId === DAISY_DFU_PRODUCT_ID) {
-      mainWindow.webContents.send('daisy-connected', true);
-    }
-  });
-
-  // Detectar cuando se desconecta
-  usbDetection.on('remove', (device) => {
-    if (device.vendorId === DAISY_DFU_VENDOR_ID && device.productId === DAISY_DFU_PRODUCT_ID) {
-      mainWindow.webContents.send('daisy-connected', false);
-    }
-  });
-
-  // Verificar si ya está conectado al inicio
+  // Verificar conexión inicial
   checkDaisyConnection();
+
+  // Iniciar polling cada 2 segundos para detectar cambios
+  connectionCheckInterval = setInterval(() => {
+    checkDaisyConnection();
+  }, 2000);
 });
 
 app.on('window-all-closed', () => {
-  usbDetection.stopMonitoring();
+  // Limpiar el intervalo
+  if (connectionCheckInterval) {
+    clearInterval(connectionCheckInterval);
+  }
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -67,7 +55,10 @@ app.on('activate', () => {
 function checkDaisyConnection() {
   exec('system_profiler SPUSBDataType -json', (error, stdout) => {
     if (error) {
-      mainWindow.webContents.send('daisy-connected', false);
+      if (lastConnectionState !== false) {
+        lastConnectionState = false;
+        mainWindow.webContents.send('daisy-connected', false);
+      }
       return;
     }
 
@@ -94,9 +85,16 @@ function checkDaisyConnection() {
         isDaisyConnected = searchForDFU(usbData.SPUSBDataType);
       }
 
-      mainWindow.webContents.send('daisy-connected', isDaisyConnected);
+      // Solo notificar si el estado cambió
+      if (isDaisyConnected !== lastConnectionState) {
+        lastConnectionState = isDaisyConnected;
+        mainWindow.webContents.send('daisy-connected', isDaisyConnected);
+      }
     } catch (e) {
-      mainWindow.webContents.send('daisy-connected', false);
+      if (lastConnectionState !== false) {
+        lastConnectionState = false;
+        mainWindow.webContents.send('daisy-connected', false);
+      }
     }
   });
 }
