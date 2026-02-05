@@ -148,25 +148,69 @@ ipcMain.handle('flash-firmware', async (event, firmwarePath) => {
   return new Promise((resolve) => {
     const fs = require('fs');
 
-    // Usar dfu-util incluido en la aplicación
-    let bundledDfuUtil = path.join(__dirname, 'bin', 'dfu-util');
-    let libusb = path.join(__dirname, 'bin', 'libusb-1.0.0.dylib');
+    // Función para encontrar el binario de dfu-util
+    const findBinary = (binaryName) => {
+      const possiblePaths = [
+        // Desarrollo
+        path.join(__dirname, 'bin', binaryName),
+        // Producción - extraResources (ubicación principal)
+        path.join(process.resourcesPath, 'bin', binaryName),
+        // Producción - app.asar.unpacked (fallback)
+        path.join(process.resourcesPath, 'app.asar.unpacked', 'bin', binaryName),
+        // Producción - dentro de app
+        path.join(app.getAppPath(), 'bin', binaryName),
+        path.join(app.getAppPath(), '..', 'bin', binaryName)
+      ];
 
-    // Cuando está empaquetado, buscar en app.asar.unpacked
-    if (!fs.existsSync(bundledDfuUtil)) {
-      bundledDfuUtil = path.join(process.resourcesPath, 'app.asar.unpacked', 'bin', 'dfu-util');
-      libusb = path.join(process.resourcesPath, 'app.asar.unpacked', 'bin', 'libusb-1.0.0.dylib');
+      for (const testPath of possiblePaths) {
+        if (fs.existsSync(testPath)) {
+          console.log(`✅ Encontrado ${binaryName} en: ${testPath}`);
+          return testPath;
+        } else {
+          console.log(`❌ No encontrado en: ${testPath}`);
+        }
+      }
+
+      return null;
+    };
+
+    const dfuUtilPath = findBinary('dfu-util');
+    const libusbPath = findBinary('libusb-1.0.0.dylib');
+
+    if (!dfuUtilPath) {
+      const errorMsg = 'No se encontró dfu-util. Rutas buscadas:\n' +
+        `- ${path.join(__dirname, 'bin', 'dfu-util')}\n` +
+        `- ${path.join(process.resourcesPath, 'app.asar.unpacked', 'bin', 'dfu-util')}\n` +
+        `- ${path.join(process.resourcesPath, 'bin', 'dfu-util')}`;
+
+      console.error(errorMsg);
+      mainWindow.webContents.send('flash-progress', errorMsg);
+
+      resolve({
+        success: false,
+        error: 'dfu-util no encontrado',
+        output: errorMsg
+      });
+      return;
     }
 
-    let dfuUtilPath = 'dfu-util'; // Default: buscar en PATH
-
-    // Si existe el binario incluido, usarlo
-    if (fs.existsSync(bundledDfuUtil)) {
-      dfuUtilPath = bundledDfuUtil;
+    // Hacer el binario ejecutable
+    try {
+      fs.chmodSync(dfuUtilPath, 0o755);
+    } catch (e) {
+      console.log('No se pudo cambiar permisos (puede ser normal):', e.message);
     }
 
     // Comando dfu-util para Daisy (STM32F7)
-    const command = `DYLD_LIBRARY_PATH="${path.dirname(libusb)}" "${dfuUtilPath}" -a 0 -s 0x08000000:leave -D "${firmwarePath}"`;
+    let command;
+    if (libusbPath) {
+      command = `DYLD_LIBRARY_PATH="${path.dirname(libusbPath)}" "${dfuUtilPath}" -a 0 -s 0x08000000:leave -D "${firmwarePath}"`;
+    } else {
+      command = `"${dfuUtilPath}" -a 0 -s 0x08000000:leave -D "${firmwarePath}"`;
+    }
+
+    console.log('Ejecutando comando:', command);
+    mainWindow.webContents.send('flash-progress', `Ejecutando: ${command}\n`);
 
     const process = exec(command, (error, stdout, stderr) => {
       if (error) {

@@ -41,14 +41,20 @@
         },
         "files": [
             "**/*",
-            "bin/**/*",
+            "!bin/**/*",
             "!**/*.ts",
             "!*.md",
             "!node_modules",
             "!dist"
         ],
-        "asarUnpack": [
-            "bin/**/*"
+        "extraResources": [
+            {
+                "from": "bin",
+                "to": "bin",
+                "filter": [
+                    "**/*"
+                ]
+            }
         ]
     }
 }
