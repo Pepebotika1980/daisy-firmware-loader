@@ -189,34 +189,58 @@ ipcMain.handle('flash-firmware', async (event, firmwarePath) => {
       mainWindow.webContents.send('flash-progress', `📁 __dirname: ${__dirname}\n`);
       mainWindow.webContents.send('flash-progress', `📁 process.resourcesPath: ${process.resourcesPath}\n`);
 
-      // Función para encontrar el binario de dfu-util
+      // Función para encontrar el binario de dfu-util con soporte de arquitectura
       const findBinary = (binaryName) => {
+        const arch = process.arch; // 'arm64' o 'x64'
+        const archBinaryName = `${binaryName}-${arch}`;
+
         const possiblePaths = [
-          // Desarrollo
+          // 1. Binario específico para la arquitectura en carpeta bin local
+          path.join(__dirname, 'bin', archBinaryName),
+          // 2. Binario genérico en carpeta bin local
           path.join(__dirname, 'bin', binaryName),
-          // Producción - extraResources (ubicación principal)
+          // 3. Producción - extraResources específico
+          path.join(process.resourcesPath, 'bin', archBinaryName),
+          // 4. Producción - extraResources genérico
           path.join(process.resourcesPath, 'bin', binaryName),
-          // Producción - app.asar.unpacked (fallback)
-          path.join(process.resourcesPath, 'app.asar.unpacked', 'bin', binaryName)
         ];
 
         for (const testPath of possiblePaths) {
           if (fs.existsSync(testPath)) {
-            mainWindow.webContents.send('flash-progress', `✅ Encontrado ${binaryName} en: ${testPath}\n`);
-            return testPath;
-          } else {
-            mainWindow.webContents.send('flash-progress', `❌ No encontrado en: ${testPath}\n`);
+            // Verificar que no sea un archivo HTML (error común de descarga)
+            const stats = fs.statSync(testPath);
+            if (stats.size > 5000) { // Los binarios suelen ser > 50KB, los HTML de error < 5KB
+              mainWindow.webContents.send('flash-progress', `✅ Encontrado ${binaryName} en: ${testPath}\n`);
+              return testPath;
+            } else {
+              mainWindow.webContents.send('flash-progress', `⚠️  Omitiendo ${testPath} (parece corrupto o muy pequeño)\n`);
+            }
           }
         }
 
         return null;
       };
 
-      const dfuUtilPath = findBinary('dfu-util');
-      const libusbPath = findBinary('libusb-1.0.0.dylib');
+      let dfuUtilPath = findBinary('dfu-util');
+      let libusbPath = findBinary('libusb-1.0.0.dylib');
+
+      // Si no se encuentra en binarios empaquetados, buscar en el sistema (salvavidas)
+      if (!dfuUtilPath) {
+        mainWindow.webContents.send('flash-progress', `🔍 No se encontró binario local, buscando en el sistema...\n`);
+        const { execSync } = require('child_process');
+        try {
+          const systemDfu = execSync('which dfu-util').toString().trim();
+          if (systemDfu) {
+            dfuUtilPath = systemDfu;
+            mainWindow.webContents.send('flash-progress', `✅ Usando dfu-util del sistema: ${dfuUtilPath}\n`);
+          }
+        } catch (e) {
+          // No está en el sistema
+        }
+      }
 
       if (!dfuUtilPath) {
-        const errorMsg = 'No se encontró dfu-util en ninguna ubicación';
+        const errorMsg = 'No se encontró dfu-util en ninguna ubicación (local o sistema).';
         mainWindow.webContents.send('flash-progress', `❌ ${errorMsg}\n`);
 
         resolve({
@@ -237,7 +261,10 @@ ipcMain.handle('flash-firmware', async (event, firmwarePath) => {
 
       // Comando dfu-util para Daisy (STM32F7)
       let command;
-      if (libusbPath) {
+      const isBundledDfu = dfuUtilPath.includes(__dirname) || dfuUtilPath.includes(process.resourcesPath);
+
+      // Solo usamos DYLD_LIBRARY_PATH si tenemos libusb local y estamos usando el dfu-util empaquetado
+      if (libusbPath && isBundledDfu) {
         command = `DYLD_LIBRARY_PATH="${path.dirname(libusbPath)}" "${dfuUtilPath}" -a 0 -s 0x08000000:leave -D "${finalPath}"`;
       } else {
         command = `"${dfuUtilPath}" -a 0 -s 0x08000000:leave -D "${finalPath}"`;
