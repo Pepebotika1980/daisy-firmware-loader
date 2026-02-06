@@ -2,7 +2,7 @@
 
 Una aplicación moderna, elegante y nativa para macOS diseñada para cargar firmwares en placas **Daisy (Electrosmith)** de forma sencilla y fiable.
 
-![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.3.1-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-macOS-lightgrey.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
@@ -19,7 +19,7 @@ Una aplicación moderna, elegante y nativa para macOS diseñada para cargar firm
 ## 🚀 Instalación Rápida
 
 ### Descargar la App
-[![Descargar v1.2.0](https://img.shields.io/badge/Descargar-v1.2.0--macOS-blue?style=for-the-badge&logo=apple)](https://github.com/Pepebotika1980/daisy-firmware-loader/releases/latest)
+[![Descargar v1.3.1](https://img.shields.io/badge/Descargar-v1.3.1--macOS-blue?style=for-the-badge&logo=apple)](https://github.com/Pepebotika1980/daisy-firmware-loader/releases/latest)
 
 1. Ve a la sección de [Releases](https://github.com/Pepebotika1980/daisy-firmware-loader/releases/latest).
 2. Descarga el archivo `.dmg` correspondiente a tu procesador (Intel o Apple Silicon).
